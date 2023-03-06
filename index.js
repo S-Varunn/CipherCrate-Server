@@ -2,12 +2,15 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const bcrypt = require("bcrypt");
-const { createDbConnection, getGridfsBucket } = require("./config/dbConn");
+const { createDbConnection } = require("./config/dbConn");
 const verifyToken = require("./helpers/auth");
 const { generateJwtToken } = require("./helpers/helpers");
 const { encryptFile } = require("./encrypt_decrypt/encrypt_decrypt");
-const { mask, deMask } = require("./helpers/mask");
+const { mask, deMask, customMasking } = require("./helpers/mask");
 const User = require("./model/user.model");
+const FileMetadata = require("./model/file.model");
+
+const crypto = require("crypto");
 
 dotenv.config();
 
@@ -20,6 +23,24 @@ const PORT = process.env.PORT || 5000;
 // Handle file upload
 app.post("/v1/upload", encryptFile, (req, res) => {
   console.log("Done uploading");
+  res.json({ status: "success", message: "Successfully uploaded" });
+});
+
+app.get("/v1/filelist", async (req, res) => {
+  console.log(req.body);
+  const filter = {
+    email: deMask(req.body.email),
+  };
+  let fileList = [];
+  const all = await FileMetadata.find(filter);
+  all.forEach((file) => {
+    let currFile = {};
+    currFile.filename = file.fileName;
+    currFile.size = file.size;
+    currFile.createdAt = file.date;
+    fileList.push(currFile);
+  });
+  res.json({ status: "success", fileList });
 });
 
 app.post("/v1/signup", async (req, res) => {
@@ -46,9 +67,15 @@ app.post("/v1/signup", async (req, res) => {
       error: "No user found with the provided email",
     });
 });
+console.log(crypto.randomBytes(32).toString("base64"));
 
 app.post("/v1/register", async (req, res) => {
   const password = deMask(req.body.password);
+  let key = crypto.randomBytes(32).toString("base64");
+  let passphrase = deMask(req.body.passphrase);
+
+  let encryptedKey = customMasking(key, passphrase);
+
   bcrypt.genSalt(10, async (err, salt) => {
     bcrypt.hash(password, salt, async function (err, hash) {
       try {
@@ -57,7 +84,7 @@ app.post("/v1/register", async (req, res) => {
           email: req.body.email,
           password: hash,
           date: new Date(),
-          passphrase: req.body.passphrase,
+          key: encryptedKey,
         });
         const token = generateJwtToken({ email: req.body.email });
         res.json({ status: "ok", token });

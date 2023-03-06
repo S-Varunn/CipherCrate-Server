@@ -22,6 +22,19 @@ const maskIV = process.env.MASK_IV;
 //   return crypted.toString("hex");
 // }
 
+function customMasking(message, secret) {
+  const cipher = crypto.createCipheriv(algorithm, secret, maskIV);
+  let ciphertext = cipher.update(message, "utf-8", "base64");
+  ciphertext += cipher.final("base64");
+  return ciphertext;
+}
+function customDeMasking(message, secret) {
+  const decipher = crypto.createDecipheriv(algorithm, secret, maskIV);
+  let deciphertext = decipher.update(message, "utf-8", "base64");
+  deciphertext += decipher.final("base64");
+  return deciphertext;
+}
+
 function mask(message) {
   const cipher = crypto.createCipheriv(algorithm, maskKey, maskIV);
   let ciphertext = cipher.update(message, "utf-8", "base64");
