@@ -29,7 +29,7 @@ app.post("/v1/upload", encryptFile, (req, res) => {
 app.get("/v1/filelist", async (req, res) => {
   console.log(req.body);
   const filter = {
-    email: deMask(req.body.email),
+    email: req.body.email,
   };
   let fileList = [];
   const all = await FileMetadata.find(filter);
