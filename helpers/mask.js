@@ -33,4 +33,4 @@ function deMask(message) {
   return plaintext;
 }
 
-module.exports = { mask, deMask };
+module.exports = { mask, deMask, customMasking, customDeMasking };

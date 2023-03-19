@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const bcrypt = require("bcrypt");
+const bodyParser = require("body-parser");
 const { createDbConnection } = require("./config/dbConn");
 const verifyToken = require("./helpers/auth");
 const { generateJwtToken } = require("./helpers/helpers");
@@ -17,6 +18,7 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(cors());
+app.use(bodyParser.json());
 
 const PORT = process.env.PORT || 5000;
 
@@ -26,10 +28,11 @@ app.post("/v1/upload", encryptFile, (req, res) => {
   res.json({ status: "success", message: "Successfully uploaded" });
 });
 
-app.get("/v1/filelist", async (req, res) => {
-  console.log(req.body);
+app.get("/v1/filelist/:email", async (req, res) => {
+  console.log(req.params);
+
   const filter = {
-    email: req.body.email,
+    email: deMask(req.params.email),
   };
   let fileList = [];
   const all = await FileMetadata.find(filter);
@@ -67,13 +70,14 @@ app.post("/v1/signup", async (req, res) => {
       error: "No user found with the provided email",
     });
 });
-console.log(crypto.randomBytes(32).toString("base64"));
 
 app.post("/v1/register", async (req, res) => {
+  console.log(req.body);
   const password = deMask(req.body.password);
-  let key = crypto.randomBytes(32).toString("base64");
   let passphrase = deMask(req.body.passphrase);
+  console.log(password + " " + passphrase);
 
+  let key = crypto.randomBytes(32).toString("base64");
   let encryptedKey = customMasking(key, passphrase);
 
   bcrypt.genSalt(10, async (err, salt) => {
