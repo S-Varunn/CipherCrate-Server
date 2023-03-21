@@ -6,8 +6,11 @@ const bodyParser = require("body-parser");
 const { createDbConnection } = require("./config/dbConn");
 const verifyToken = require("./helpers/auth");
 const { generateJwtToken } = require("./helpers/helpers");
-const { encryptFile } = require("./encrypt_decrypt/encrypt_decrypt");
-const { mask, deMask, customMasking } = require("./helpers/mask");
+const {
+  uploadFile,
+  downloadFile,
+} = require("./encrypt_decrypt/encrypt_decrypt");
+const { mask, deMask, sha256 } = require("./helpers/crypto");
 const User = require("./model/user.model");
 const FileMetadata = require("./model/file.model");
 
@@ -23,14 +26,25 @@ app.use(bodyParser.json());
 const PORT = process.env.PORT || 5000;
 
 // Handle file upload
-app.post("/v1/upload", encryptFile, (req, res) => {
+app.post("/v1/upload", verifyToken, uploadFile, (req, res) => {
   console.log("Done uploading");
   res.json({ status: "success", message: "Successfully uploaded" });
 });
 
-app.get("/v1/filelist/:email", async (req, res) => {
-  console.log(req.params);
+app.post("/v1/download", verifyToken, downloadFile, (req, res) => {});
 
+app.get("/v1/filelist/:email", verifyToken, async (req, res) => {
+  const user = await User.findOne({
+    email: deMask(req.body.email),
+  });
+
+  if (user) {
+    let passphrase = deMask(req.body.passphrase);
+
+    if (user.passphrase === sha256(passphrase)) {
+      console.log("Yes");
+    } else console.log("No");
+  }
   const filter = {
     email: deMask(req.params.email),
   };
@@ -46,11 +60,21 @@ app.get("/v1/filelist/:email", async (req, res) => {
   res.json({ status: "success", fileList });
 });
 
+app.post("/v1/checkPassphrase", verifyToken, async (req, res) => {
+  const user = await User.findOne({
+    email: deMask(req.body.email),
+  });
+  let oneWayPassphrase = sha256(deMask(req.body.passphrase));
+
+  if (oneWayPassphrase === user.passphrase)
+    res.json({ status: "ok", message: "Correct Passphrase" });
+  else res.json({ status: "error", message: "Incorrect Passphrase" });
+});
+
 app.post("/v1/signup", async (req, res) => {
   const user = await User.findOne({
-    email: req.body.email,
+    email: deMask(req.body.email),
   });
-  console.log(user);
   if (user) {
     bcrypt.compare(
       deMask(req.body.password),
@@ -72,23 +96,21 @@ app.post("/v1/signup", async (req, res) => {
 });
 
 app.post("/v1/register", async (req, res) => {
-  console.log(req.body);
-  const password = deMask(req.body.password);
-  let passphrase = deMask(req.body.passphrase);
-  console.log(password + " " + passphrase);
-
-  let key = crypto.randomBytes(32).toString("base64");
-  let encryptedKey = customMasking(key, passphrase);
+  let password = deMask(req.body.password),
+    passphrase = deMask(req.body.passphrase),
+    userName = deMask(req.body.userName),
+    email = deMask(req.body.email);
+  let oneWayPassphrase = sha256(passphrase);
 
   bcrypt.genSalt(10, async (err, salt) => {
     bcrypt.hash(password, salt, async function (err, hash) {
       try {
         await User.create({
-          userName: req.body.userName,
-          email: req.body.email,
+          userName: userName,
+          email: email,
           password: hash,
           date: new Date(),
-          key: encryptedKey,
+          passphrase: oneWayPassphrase,
         });
         const token = generateJwtToken({ email: req.body.email });
         res.json({ status: "ok", token });

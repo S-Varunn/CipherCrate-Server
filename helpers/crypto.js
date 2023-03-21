@@ -1,8 +1,8 @@
 const crypto = require("crypto");
+const { unStitch } = require("./helpers");
 
 const algorithm = "aes-256-cbc"; // Choose an encryption algorithm
-const maskKey = process.env.MASK_KEY; // Generate a random encryption key
-const maskIV = process.env.MASK_IV;
+const maskKey = process.env.MASTER_KEY;
 
 function customMasking(message, secret) {
   const cipher = crypto.createCipheriv(algorithm, secret, maskIV);
@@ -23,14 +23,19 @@ function mask(message) {
   ciphertext += cipher.final("base64");
   return ciphertext;
 }
-function deMask(message) {
-  let iv = message.substring(1, 17);
-  console.log(iv);
-  message = message.substring(0, 1) + message.substring(17);
+function deMask(encMessage) {
+  let { iv, message } = unStitch(encMessage);
+  // console.log("Iv: ", iv, " Message: ", message);
   const decipher = crypto.createDecipheriv(algorithm, maskKey, iv);
   let plaintext = decipher.update(message, "base64", "utf-8");
   plaintext += decipher.final("utf-8");
   return plaintext;
 }
 
-module.exports = { mask, deMask, customMasking, customDeMasking };
+function sha256(str) {
+  const hash = crypto.createHash("sha256");
+  hash.update(str);
+  return hash.digest("hex");
+}
+
+module.exports = { mask, deMask, customMasking, customDeMasking, sha256 };

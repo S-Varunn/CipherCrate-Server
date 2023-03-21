@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 dotenv.config();
+
 const generateJwtToken = (user) => {
   const token = jwt.sign(
     {
@@ -25,4 +26,49 @@ const fileSizeFormatter = (bytes, decimal) => {
   );
 };
 
-module.exports = { generateJwtToken, fileSizeFormatter };
+const scramble = (string1, string2, isShuffle, length1) => {
+  let shuffle = (inArr, seed, unshuffle = false) => {
+      let outArr = Array.from(inArr),
+        len = inArr.length;
+
+      let swap = (a, b) => ([outArr[a], outArr[b]] = [outArr[b], outArr[a]]);
+
+      for (
+        var i = unshuffle ? len - 1 : 0;
+        (unshuffle && i >= 0) || (!unshuffle && i < len);
+        i += unshuffle ? -1 : 1
+      )
+        swap(seed[i % seed.length] % len, i);
+
+      return outArr;
+    },
+    unshuffle = (inArr, seed) => shuffle(inArr, seed, true);
+
+  let array = Array.from(string1 + string2);
+  let seed = [3, 45, 6, 34, 2, 78, 6, 1];
+
+  for (var i = 0; i < array.length / 2; i++) seed.push(9);
+
+  let shuffled = shuffle(array, seed);
+  if (isShuffle) return shuffled.join("");
+  return {
+    iv: unshuffle(string1, seed).join("").slice(0, length1),
+    message: unshuffle(string1, seed).join("").slice(length1),
+  };
+};
+
+const stitch = (message, iv) => {
+  return scramble(iv, message, true, 0);
+};
+
+const unStitch = (shuffledMessage) => {
+  // console.log("Shuffled Message: ", shuffledMessage);
+  return scramble(shuffledMessage, "", false, 16);
+};
+
+module.exports = {
+  generateJwtToken,
+  fileSizeFormatter,
+  stitch,
+  unStitch,
+};

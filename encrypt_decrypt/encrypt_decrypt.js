@@ -3,15 +3,13 @@ const Busboy = require("busboy");
 const { Readable } = require("stream");
 const { getGridfsBucket } = require("../config/dbConn");
 const FileMetadata = require("../model/file.model");
-const { mask } = require("../helpers/mask");
-const { fileSizeFormatter } = require("../helpers/helpers");
+const { mask } = require("../helpers/crypto");
+const { fileSizeFormatter, stitch } = require("../helpers/helpers");
+const verifyToken = require("../helpers/auth");
 
+//Change key to user passphrase (Dont store passphrase in db)
+//Conceal iv in some param and store in db
 const algorithm = "aes-256-cbc";
-const key = process.env.MASK_KEY;
-const iv = process.env.MASK_IV;
-
-const cipher = crypto.createCipheriv(algorithm, key, iv);
-const decipher = crypto.createDecipheriv(algorithm, key, iv);
 
 // Function to convert the request buffer to stream
 function convertToStream(req) {
@@ -25,7 +23,7 @@ function convertToStream(req) {
     let metadata = {};
     let size = 0;
 
-    bb.on("field", (fieldname, val, fieldnameTruncated, valTruncated) => {
+    bb.on("field", (fieldname, val) => {
       if (fieldname === "metadata") {
         metadata = JSON.parse(val);
       }
@@ -38,19 +36,12 @@ function convertToStream(req) {
       });
       file.on("end", () => {
         stream.push(null);
-        console.log(file);
         metadata.size = fileSizeFormatter(size, 2);
         resolve({ stream, metadata });
       });
     });
-
     req.pipe(bb);
   });
-}
-
-// Encryption
-function encryptSt(stream) {
-  return stream.pipe(cipher);
 }
 
 //Decryption
@@ -59,19 +50,24 @@ function decryptSt(stream) {
 }
 
 //Function to encrypt the file and stream it to mongodb
-const encryptFile = async (req, res, next) => {
+const uploadFile = async (req, res, next) => {
   let gridfsBucket = getGridfsBucket();
+
   if (gridfsBucket === {})
     res.json({ status: "error", message: "Try again in some time" });
 
   const { stream, metadata } = await convertToStream(req);
-  const fileName = mask(metadata.name);
 
-  const encryptedStream = encryptSt(stream);
+  const iv = crypto.getRandomValues(16);
+  const cipher = crypto.createCipheriv(algorithm, metadata.passphrase, iv);
 
-  var writeStream = gridfsBucket.openUploadStream(fileName);
+  const encFileName = mask(metadata.name);
+  const fileName = stitch(encFileName, iv);
+  const encryptedStream = stream.pipe(cipher);
+  let writeStream = gridfsBucket.openUploadStream(fileName);
 
   encryptedStream.pipe(writeStream);
+
   writeStream.on("close", async function () {
     console.log("Done uploading file");
     try {
@@ -94,10 +90,13 @@ const encryptFile = async (req, res, next) => {
   });
 };
 
-const decryptFile = (req, res, next) => {
+const downloadFile = (req, res, next) => {
+  //Situate the download tomorrow
+  let key = req.body.passphrase;
   let gridfsBucket = getGridfsBucket();
+  const decipher = crypto.createDecipheriv(algorithm, key, iv);
 
   decryptSt(gridfsBucket.openDownloadStreamByName("myfile.pdf"), key);
 };
 
-module.exports = { encryptFile };
+module.exports = { uploadFile, downloadFile };
