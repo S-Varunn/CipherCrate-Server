@@ -23,6 +23,37 @@ function mask(message) {
   ciphertext += cipher.final("base64");
   return ciphertext;
 }
+function createPassphraseCipher(passphrase, iv, doEncrypt, message) {
+  const cipher = crypto.createCipheriv(algorithm, passphrase, iv);
+  if (doEncrypt) {
+    let ciphertext = cipher.update(message, "utf-8", "base64");
+    ciphertext += cipher.final("base64");
+    return ciphertext;
+  }
+  return cipher;
+}
+function createPassphraseDecipher(passphrase, doDecrypt, encMessage) {
+  let { iv, message } = unStitch(encMessage);
+  console.log(
+    "Message: ",
+    message.length,
+    message,
+    "Iv: ",
+    iv.length,
+    iv,
+    "passphrase: ",
+    passphrase.length,
+    passphrase
+  );
+  const decipher = crypto.createDecipheriv(algorithm, passphrase, iv);
+  if (doDecrypt) {
+    let deciphertext = decipher.update(message, "base64", "utf-8");
+    deciphertext += decipher.final("utf-8");
+    return deciphertext;
+  }
+  return decipher;
+}
+
 function deMask(encMessage) {
   let { iv, message } = unStitch(encMessage);
   // console.log("Iv: ", iv, " Message: ", message);
@@ -38,4 +69,12 @@ function sha256(str) {
   return hash.digest("hex");
 }
 
-module.exports = { mask, deMask, customMasking, customDeMasking, sha256 };
+module.exports = {
+  mask,
+  deMask,
+  customMasking,
+  customDeMasking,
+  sha256,
+  createPassphraseCipher,
+  createPassphraseDecipher,
+};

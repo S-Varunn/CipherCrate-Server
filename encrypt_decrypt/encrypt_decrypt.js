@@ -3,8 +3,12 @@ const Busboy = require("busboy");
 const { Readable } = require("stream");
 const { getGridfsBucket } = require("../config/dbConn");
 const FileMetadata = require("../model/file.model");
-const { mask } = require("../helpers/crypto");
-const { fileSizeFormatter, stitch } = require("../helpers/helpers");
+const {
+  deMask,
+  createPassphraseCipher,
+  createPassphraseDecipher,
+} = require("../helpers/crypto");
+const { fileSizeFormatter, stitch, unStitch } = require("../helpers/helpers");
 const verifyToken = require("../helpers/auth");
 
 //Change key to user passphrase (Dont store passphrase in db)
@@ -51,6 +55,7 @@ function decryptSt(stream) {
 
 //Function to encrypt the file and stream it to mongodb
 const uploadFile = async (req, res, next) => {
+  // Initialising grid fs bucket (Takes some time to set up)
   let gridfsBucket = getGridfsBucket();
 
   if (gridfsBucket === {})
@@ -58,11 +63,42 @@ const uploadFile = async (req, res, next) => {
 
   const { stream, metadata } = await convertToStream(req);
 
-  const iv = crypto.getRandomValues(16);
-  const cipher = crypto.createCipheriv(algorithm, metadata.passphrase, iv);
+  // const iv = crypto.randomBytes(8).toString("hex");
+  // const cipher = crypto.createCipheriv(
+  //   algorithm,
+  //   deMask(metadata.passphrase),
+  //   iv
+  // );
 
-  const encFileName = mask(metadata.name);
+  console.log("Metadata: ", metadata);
+
+  const name = deMask(metadata.name);
+  const passphrase = deMask(metadata.passphrase);
+
+  console.log("FileName: ", name, "Passphrase: ", passphrase);
+  const iv = crypto.randomBytes(10).toString("base64");
+  console.log("iv: ", iv.length, iv);
+
+  let encFileName = createPassphraseCipher(passphrase, iv, true, name);
+
+  console.log(
+    "Enc FileName: ",
+    encFileName.length,
+    encFileName,
+    "iv: ",
+    iv.length,
+    iv,
+    "passphrase: ",
+    passphrase.length,
+    passphrase
+  );
   const fileName = stitch(encFileName, iv);
+
+  let originalFileName = createPassphraseDecipher(passphrase, true, fileName);
+  console.log("Original FileName: ", originalFileName);
+
+  let cipher = createPassphraseCipher(passphrase, iv, false, "");
+
   const encryptedStream = stream.pipe(cipher);
   let writeStream = gridfsBucket.openUploadStream(fileName);
 
@@ -72,7 +108,7 @@ const uploadFile = async (req, res, next) => {
     console.log("Done uploading file");
     try {
       await FileMetadata.create({
-        email: metadata.user.email,
+        email: deMask(metadata.user.email),
         userName: metadata.user.userName,
         date: new Date(),
         size: metadata.size,

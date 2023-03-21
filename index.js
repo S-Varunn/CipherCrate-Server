@@ -5,16 +5,18 @@ const bcrypt = require("bcrypt");
 const bodyParser = require("body-parser");
 const { createDbConnection } = require("./config/dbConn");
 const verifyToken = require("./helpers/auth");
-const { generateJwtToken } = require("./helpers/helpers");
+const { generateJwtToken, unStitch } = require("./helpers/helpers");
 const {
   uploadFile,
   downloadFile,
 } = require("./encrypt_decrypt/encrypt_decrypt");
-const { mask, deMask, sha256 } = require("./helpers/crypto");
+const {
+  deMask,
+  sha256,
+  createPassphraseDecipher,
+} = require("./helpers/crypto");
 const User = require("./model/user.model");
 const FileMetadata = require("./model/file.model");
-
-const crypto = require("crypto");
 
 dotenv.config();
 
@@ -33,33 +35,38 @@ app.post("/v1/upload", verifyToken, uploadFile, (req, res) => {
 
 app.post("/v1/download", verifyToken, downloadFile, (req, res) => {});
 
-app.get("/v1/filelist/:email", verifyToken, async (req, res) => {
-  const user = await User.findOne({
-    email: deMask(req.body.email),
-  });
+app.post("/v1/filelist", verifyToken, async (req, res) => {
+  const email = deMask(req.body.email);
+  // passphrase = deMask(req.body.passphrase);
+  console.log(req.body);
 
-  if (user) {
-    let passphrase = deMask(req.body.passphrase);
-
-    if (user.passphrase === sha256(passphrase)) {
-      console.log("Yes");
-    } else console.log("No");
-  }
   const filter = {
-    email: deMask(req.params.email),
+    email,
   };
   let fileList = [];
   const all = await FileMetadata.find(filter);
   all.forEach((file) => {
+    console.log(file);
     let currFile = {};
-    currFile.filename = file.fileName;
-    currFile.size = file.size;
-    currFile.createdAt = file.date;
-    fileList.push(currFile);
+    let stitchedEncryptedFileName = file.fileName;
+    console.log("stitchedEncryptedFileName", stitchedEncryptedFileName);
+    // let fileName = createPassphraseDecipher(
+    //   deMask(req.body.passphrase),
+    //   true,
+    //   stitchedEncryptedFileName
+    // );
+    // console.log("fileName", fileName);
+
+    // currFile.filename = fileName;
+    // currFile.size = file.size;
+    // currFile.date = file.date;
+    // fileList.push(currFile);
   });
   res.json({ status: "success", fileList });
 });
 
+//Completely set up
+// Handle rejection messages
 app.post("/v1/checkPassphrase", verifyToken, async (req, res) => {
   const user = await User.findOne({
     email: deMask(req.body.email),
@@ -71,6 +78,7 @@ app.post("/v1/checkPassphrase", verifyToken, async (req, res) => {
   else res.json({ status: "error", message: "Incorrect Passphrase" });
 });
 
+//Completely set up
 app.post("/v1/signup", async (req, res) => {
   const user = await User.findOne({
     email: deMask(req.body.email),
@@ -95,6 +103,7 @@ app.post("/v1/signup", async (req, res) => {
     });
 });
 
+//Completely set up
 app.post("/v1/register", async (req, res) => {
   let password = deMask(req.body.password),
     passphrase = deMask(req.body.passphrase),
