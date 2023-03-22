@@ -3,6 +3,7 @@ const Busboy = require("busboy");
 const { Readable } = require("stream");
 const { getGridfsBucket } = require("../config/dbConn");
 const FileMetadata = require("../model/file.model");
+const fs = require("fs");
 const {
   deMask,
   createPassphraseCipher,
@@ -63,39 +64,17 @@ const uploadFile = async (req, res, next) => {
 
   const { stream, metadata } = await convertToStream(req);
 
-  // const iv = crypto.randomBytes(8).toString("hex");
-  // const cipher = crypto.createCipheriv(
-  //   algorithm,
-  //   deMask(metadata.passphrase),
-  //   iv
-  // );
-
   console.log("Metadata: ", metadata);
 
   const name = deMask(metadata.name);
   const passphrase = deMask(metadata.passphrase);
 
-  console.log("FileName: ", name, "Passphrase: ", passphrase);
+  // console.log("FileName: ", name, "Passphrase: ", passphrase);
   const iv = crypto.randomBytes(10).toString("base64");
-  console.log("iv: ", iv.length, iv);
 
   let encFileName = createPassphraseCipher(passphrase, iv, true, name);
 
-  console.log(
-    "Enc FileName: ",
-    encFileName.length,
-    encFileName,
-    "iv: ",
-    iv.length,
-    iv,
-    "passphrase: ",
-    passphrase.length,
-    passphrase
-  );
   const fileName = stitch(encFileName, iv);
-
-  let originalFileName = createPassphraseDecipher(passphrase, true, fileName);
-  console.log("Original FileName: ", originalFileName);
 
   let cipher = createPassphraseCipher(passphrase, iv, false, "");
 
@@ -127,12 +106,23 @@ const uploadFile = async (req, res, next) => {
 };
 
 const downloadFile = (req, res, next) => {
-  //Situate the download tomorrow
-  let key = req.body.passphrase;
+  console.log(req.query);
+  console.log(decodeURIComponent(req.query.passphrase));
+  const fileName = decodeURIComponent(req.query.fileName);
+  const passphrase = decodeURIComponent(req.query.passphrase);
+  // const email = decodeURIComponent(req.query.email);
+
+  let key = deMask(passphrase);
+  let { iv } = unStitch(fileName);
+
   let gridfsBucket = getGridfsBucket();
   const decipher = crypto.createDecipheriv(algorithm, key, iv);
-
-  decryptSt(gridfsBucket.openDownloadStreamByName("myfile.pdf"), key);
+  res.setHeader("Content-Type", "blob");
+  gridfsBucket
+    .openDownloadStreamByName(fileName)
+    .pipe(decipher)
+    // .pipe(fs.createWriteStream("file.jpg"));
+    .pipe(res);
 };
 
 module.exports = { uploadFile, downloadFile };

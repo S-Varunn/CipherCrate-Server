@@ -33,7 +33,8 @@ app.post("/v1/upload", verifyToken, uploadFile, (req, res) => {
   res.json({ status: "success", message: "Successfully uploaded" });
 });
 
-app.post("/v1/download", verifyToken, downloadFile, (req, res) => {});
+app.post("/v1/download", verifyToken, downloadFile);
+app.get("/v1/download", downloadFile);
 
 app.post("/v1/filelist", verifyToken, async (req, res) => {
   const email = deMask(req.body.email);
@@ -50,17 +51,17 @@ app.post("/v1/filelist", verifyToken, async (req, res) => {
     let currFile = {};
     let stitchedEncryptedFileName = file.fileName;
     console.log("stitchedEncryptedFileName", stitchedEncryptedFileName);
-    // let fileName = createPassphraseDecipher(
-    //   deMask(req.body.passphrase),
-    //   true,
-    //   stitchedEncryptedFileName
-    // );
-    // console.log("fileName", fileName);
-
-    // currFile.filename = fileName;
-    // currFile.size = file.size;
-    // currFile.date = file.date;
-    // fileList.push(currFile);
+    let fileName = createPassphraseDecipher(
+      deMask(req.body.passphrase),
+      true,
+      stitchedEncryptedFileName
+    );
+    console.log("fileName", fileName);
+    currFile.encryptedFileName = stitchedEncryptedFileName;
+    currFile.filename = fileName;
+    currFile.size = file.size;
+    currFile.date = file.date;
+    fileList.push(currFile);
   });
   res.json({ status: "success", fileList });
 });

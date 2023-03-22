@@ -34,17 +34,6 @@ function createPassphraseCipher(passphrase, iv, doEncrypt, message) {
 }
 function createPassphraseDecipher(passphrase, doDecrypt, encMessage) {
   let { iv, message } = unStitch(encMessage);
-  console.log(
-    "Message: ",
-    message.length,
-    message,
-    "Iv: ",
-    iv.length,
-    iv,
-    "passphrase: ",
-    passphrase.length,
-    passphrase
-  );
   const decipher = crypto.createDecipheriv(algorithm, passphrase, iv);
   if (doDecrypt) {
     let deciphertext = decipher.update(message, "base64", "utf-8");
