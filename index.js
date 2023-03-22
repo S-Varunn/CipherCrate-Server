@@ -57,10 +57,14 @@ app.post("/v1/filelist", verifyToken, async (req, res) => {
       stitchedEncryptedFileName
     );
     console.log("fileName", fileName);
+    const fileSplits = fileName.split(".");
+    const fileType = fileSplits[fileSplits.length - 1];
+
     currFile.encryptedFileName = stitchedEncryptedFileName;
     currFile.filename = fileName;
     currFile.size = file.size;
     currFile.date = file.date;
+    currFile.type = fileType;
     fileList.push(currFile);
   });
   res.json({ status: "success", fileList });
