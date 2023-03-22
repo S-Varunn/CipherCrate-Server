@@ -69,7 +69,6 @@ const uploadFile = async (req, res, next) => {
   const name = deMask(metadata.name);
   const passphrase = deMask(metadata.passphrase);
 
-  // console.log("FileName: ", name, "Passphrase: ", passphrase);
   const iv = crypto.randomBytes(10).toString("base64");
 
   let encFileName = createPassphraseCipher(passphrase, iv, true, name);
