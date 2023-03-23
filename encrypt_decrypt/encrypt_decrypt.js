@@ -69,6 +69,21 @@ const uploadFile = async (req, res, next) => {
   const name = deMask(metadata.name);
   const passphrase = deMask(metadata.passphrase);
 
+  try {
+    let dbFile = await FileMetadata.findOne({
+      originalFileName: name,
+      email: deMask(metadata.user.email),
+    });
+    if (dbFile) {
+      res.status(401).json({
+        message: "File already exists",
+      });
+      return;
+    }
+  } catch (err) {
+    console.log("err");
+  }
+
   const iv = crypto.randomBytes(10).toString("base64");
 
   let encFileName = createPassphraseCipher(passphrase, iv, true, name);
@@ -87,12 +102,14 @@ const uploadFile = async (req, res, next) => {
       await FileMetadata.create({
         email: deMask(metadata.user.email),
         userName: metadata.user.userName,
+        fileName,
         date: new Date(),
         size: metadata.size,
-        fileName,
+        originalFileName: name,
       });
       next();
     } catch (err) {
+      console.log(err);
       res.status(400).json({
         message: "Unable to upload file! Please try again!",
       });
