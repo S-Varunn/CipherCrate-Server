@@ -30,7 +30,9 @@ const PORT = process.env.PORT || 5000;
 // Handle file upload
 app.post("/v1/upload", verifyToken, uploadFile, (req, res) => {
   console.log("Done uploading");
-  res.json({ status: "success", message: "Successfully uploaded" });
+  res.status(200).json({
+    message: "Upload Successful!",
+  });
 });
 
 app.post("/v1/download", verifyToken, downloadFile);
@@ -51,17 +53,10 @@ app.post("/v1/filelist", verifyToken, async (req, res) => {
       true,
       stitchedEncryptedFileName
     );
-<<<<<<< HEAD
     //obtaining the file type
     const fileSplits = fileName.split(".");
     const fileType = fileSplits[fileSplits.length - 1];
     //Constucting the file to send to the client
-=======
-    console.log("fileName", fileName);
-    const fileSplits = fileName.split(".");
-    const fileType = fileSplits[fileSplits.length - 1];
-
->>>>>>> 133cb674c7b8fc01f1f87256f2a006d5babfdba9
     currFile.encryptedFileName = stitchedEncryptedFileName;
     currFile.filename = fileName;
     currFile.size = file.size;
@@ -69,7 +64,10 @@ app.post("/v1/filelist", verifyToken, async (req, res) => {
     currFile.type = fileType;
     fileList.push(currFile);
   });
-  res.json({ status: "success", fileList });
+  res.status(200).json({
+    fileList,
+    message: "Successfully retrieved user information!",
+  });
 });
 
 //Completely set up
@@ -102,13 +100,11 @@ app.post("/v1/signup", async (req, res) => {
       function (err, result) {
         if (result) {
           const token = generateJwtToken(user);
-          // res.json({ status: "ok", token, userName: user.userName });
           res.status(200).json({
             token,
             message: "Successfully signed in!",
           });
         } else {
-          // res.json({ status: "error", error: "Password mismatch" });
           res.status(401).json({
             message: "Password Incorrect! Please try again!",
           });

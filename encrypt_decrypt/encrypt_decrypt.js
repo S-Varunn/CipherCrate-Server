@@ -60,11 +60,11 @@ const uploadFile = async (req, res, next) => {
   let gridfsBucket = getGridfsBucket();
 
   if (gridfsBucket === {})
-    res.json({ status: "error", message: "Try again in some time" });
+    res.status(425).json({
+      message: "Try again in some time!",
+    });
 
   const { stream, metadata } = await convertToStream(req);
-
-  console.log("Metadata: ", metadata);
 
   const name = deMask(metadata.name);
   const passphrase = deMask(metadata.passphrase);
@@ -83,7 +83,6 @@ const uploadFile = async (req, res, next) => {
   encryptedStream.pipe(writeStream);
 
   writeStream.on("close", async function () {
-    console.log("Done uploading file");
     try {
       await FileMetadata.create({
         email: deMask(metadata.user.email),
@@ -94,8 +93,9 @@ const uploadFile = async (req, res, next) => {
       });
       next();
     } catch (err) {
-      console.log(err);
-      res.json({ status: "error", error: "Unable to upload file" });
+      res.status(400).json({
+        message: "Unable to upload file! Please try again!",
+      });
     }
   });
 
