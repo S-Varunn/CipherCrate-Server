@@ -51,10 +51,17 @@ app.post("/v1/filelist", verifyToken, async (req, res) => {
       true,
       stitchedEncryptedFileName
     );
+<<<<<<< HEAD
     //obtaining the file type
     const fileSplits = fileName.split(".");
     const fileType = fileSplits[fileSplits.length - 1];
     //Constucting the file to send to the client
+=======
+    console.log("fileName", fileName);
+    const fileSplits = fileName.split(".");
+    const fileType = fileSplits[fileSplits.length - 1];
+
+>>>>>>> 133cb674c7b8fc01f1f87256f2a006d5babfdba9
     currFile.encryptedFileName = stitchedEncryptedFileName;
     currFile.filename = fileName;
     currFile.size = file.size;
@@ -74,8 +81,13 @@ app.post("/v1/checkPassphrase", verifyToken, async (req, res) => {
   let oneWayPassphrase = sha256(deMask(req.body.passphrase));
 
   if (oneWayPassphrase === user.passphrase)
-    res.json({ status: "ok", message: "Correct Passphrase" });
-  else res.json({ status: "error", message: "Incorrect Passphrase" });
+    res.status(200).json({
+      message: "Passphrase is correct! Kampai!",
+    });
+  else
+    res.status(401).json({
+      message: "Passphrase Incorrect! Please try again!",
+    });
 });
 
 //Completely set up
@@ -90,16 +102,22 @@ app.post("/v1/signup", async (req, res) => {
       function (err, result) {
         if (result) {
           const token = generateJwtToken(user);
-          res.json({ status: "ok", token, userName: user.userName });
+          // res.json({ status: "ok", token, userName: user.userName });
+          res.status(200).json({
+            token,
+            message: "Successfully signed in!",
+          });
         } else {
-          res.json({ status: "error", error: "Password mismatch" });
+          // res.json({ status: "error", error: "Password mismatch" });
+          res.status(401).json({
+            message: "Password Incorrect! Please try again!",
+          });
         }
       }
     );
   } else
-    res.json({
-      status: "error",
-      error: "No user found with the provided email",
+    res.status(401).json({
+      message: "No user with the email provided !",
     });
 });
 
@@ -122,10 +140,15 @@ app.post("/v1/register", async (req, res) => {
           passphrase: oneWayPassphrase,
         });
         const token = generateJwtToken({ email: req.body.email });
-        res.json({ status: "ok", token });
+        res.status(200).json({
+          token,
+          message: "Successfully Registered!",
+        });
       } catch (err) {
         console.log(err);
-        res.json({ status: "error", error: "Duplicate email" });
+        res.status(401).json({
+          message: "An user with the email already exists!",
+        });
       }
     });
   });
