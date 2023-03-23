@@ -38,29 +38,28 @@ app.get("/v1/download", downloadFile);
 
 app.post("/v1/filelist", verifyToken, async (req, res) => {
   const email = deMask(req.body.email);
-  // passphrase = deMask(req.body.passphrase);
-  console.log(req.body);
-
   const filter = {
     email,
   };
   let fileList = [];
   const all = await FileMetadata.find(filter);
   all.forEach((file) => {
-    console.log(file);
     let currFile = {};
     let stitchedEncryptedFileName = file.fileName;
-    console.log("stitchedEncryptedFileName", stitchedEncryptedFileName);
     let fileName = createPassphraseDecipher(
       deMask(req.body.passphrase),
       true,
       stitchedEncryptedFileName
     );
-    console.log("fileName", fileName);
+    //obtaining the file type
+    const fileSplits = fileName.split(".");
+    const fileType = fileSplits[fileSplits.length - 1];
+    //Constucting the file to send to the client
     currFile.encryptedFileName = stitchedEncryptedFileName;
     currFile.filename = fileName;
     currFile.size = file.size;
     currFile.date = file.date;
+    currFile.type = fileType;
     fileList.push(currFile);
   });
   res.json({ status: "success", fileList });
