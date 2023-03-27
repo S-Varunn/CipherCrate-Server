@@ -8,14 +8,18 @@ const verifyToken = (req, res, next) => {
     req.body.token || req.query.token || req.headers["x-access-token"];
   // console.log("Jwt Token: ", token);
   if (!token) {
-    return res.status(403).send("A token is required for authentication");
+    return res
+      .status(403)
+      .send({ message: "A token is required for authentication" });
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
     // console.log("Decoded Token: ", decoded);
   } catch (err) {
-    return res.status(401).send("Invalid Token");
+    res.status(401).json({
+      message: "Not authorized!",
+    });
   }
   return next();
 };

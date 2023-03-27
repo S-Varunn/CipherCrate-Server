@@ -93,6 +93,7 @@ app.post("/v1/signup", async (req, res) => {
   const user = await User.findOne({
     email: deMask(req.body.email),
   });
+  let userName = user.userName;
   if (user) {
     bcrypt.compare(
       deMask(req.body.password),
@@ -102,6 +103,7 @@ app.post("/v1/signup", async (req, res) => {
           const token = generateJwtToken(user);
           res.status(200).json({
             token,
+            userName,
             message: "Successfully signed in!",
           });
         } else {
